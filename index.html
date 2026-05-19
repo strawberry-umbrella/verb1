@@ -1,4 +1,3 @@
-
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font-sans); direction: rtl; }
@@ -51,14 +50,22 @@ tbody td select.err { border-color: #A32D2D; background: #FCEBEB; color: #501313
 .btn-restart { width: 100%; padding: 0.75rem; background: #534AB7; color: #EEEDFE; border: none; border-radius: var(--border-radius-md); font-size: 16px; cursor: pointer; font-weight: 500; }
 .btn-restart:hover { background: #3C3489; }
 .print-note { font-size: 12px; color: var(--color-text-secondary); text-align: center; margin-bottom: 1rem; }
+.loading { padding: 3rem 1rem; text-align: center; color: var(--color-text-secondary); font-size: 16px; }
+.error-msg { padding: 2rem 1rem; text-align: center; color: #A32D2D; font-size: 15px; background: #FCEBEB; border-radius: var(--border-radius-lg); }
 </style>
 
-<div class="game" id="game">
+<!-- טוען שאלות ופונקציית בדיקת שורש — אל תערוך קובץ זה -->
+<script src="data.js"></script>
+
+<div id="loading" class="loading">טוען שאלות…</div>
+<div id="error" class="error-msg" style="display:none"></div>
+
+<div class="game" id="game" style="display:none">
   <h2 class="sr-only">משחק ניתוח פעלים בעברית — שורש, גוף, זמן, בניין</h2>
 
   <div class="header">
     <div class="progress" id="progress"></div>
-    <div class="qnum" id="qnum">שאלה 1 מתוך 10</div>
+    <div class="qnum" id="qnum"></div>
   </div>
 
   <div class="score-strip">
@@ -75,10 +82,7 @@ tbody td select.err { border-color: #A32D2D; background: #FCEBEB; color: #501313
     <table>
       <thead>
         <tr>
-          <th>שורש</th>
-          <th>גוף</th>
-          <th>זמן</th>
-          <th>בניין</th>
+          <th>שורש</th><th>גוף</th><th>זמן</th><th>בניין</th>
         </tr>
       </thead>
       <tbody>
@@ -115,19 +119,19 @@ tbody td select.err { border-color: #A32D2D; background: #FCEBEB; color: #501313
 
   <div class="btn-row">
     <button class="btn-check" id="btn-check" onclick="checkAnswer()">בדוק תשובה</button>
-    <button class="btn-next" id="btn-next" onclick="nextQ()">המשך ←</button>
+    <button class="btn-next"  id="btn-next"  onclick="nextQ()">המשך ←</button>
   </div>
 </div>
 
 <div class="results-page" id="results-page">
   <div class="res-header">
-    <div class="res-title" id="res-title">סיכום תוצאות</div>
+    <div class="res-title"     id="res-title"></div>
     <div class="res-score-big" id="res-score-big"></div>
-    <div class="res-sub" id="res-sub"></div>
+    <div class="res-sub"       id="res-sub"></div>
   </div>
   <p class="print-note">אפשר לצלם מסך ולשלוח למורה</p>
   <div class="res-table-wrap">
-    <table class="res-table" id="res-table">
+    <table class="res-table">
       <thead>
         <tr>
           <th style="width:28%">משפט / פועל</th>
@@ -144,51 +148,23 @@ tbody td select.err { border-color: #A32D2D; background: #FCEBEB; color: #501313
 </div>
 
 <script>
-const QUESTIONS = [
-  { sentence: "המורה לימדה חומר למבחן", verb: "לימדה", root: "למד", guf: "נסתרת", zman: "עבר", binyan: "פיעל" },
-  { sentence: "הילדים שיחקו בחוץ בכדור", verb: "שיחקו", root: "שחק", guf: "נסתרים", zman: "עבר", binyan: "פיעל" },
-  { sentence: "התמונה נגזרה מהעיתון", verb: "נגזרה", root: "גזר", guf: "נסתרת", zman: "עבר", binyan: "נפעל" },
-  { sentence: "המטמון הוחבא היטב", verb: "הוחבא", root: "חבא", guf: "נסתר", zman: "עבר", binyan: "הופעל" },
-  { sentence: "אתם תתגלגלו על הדשא", verb: "תתגלגלו", root: "גלגל", guf: "נוכחים", zman: "עתיד", binyan: "התפעל" },
-  { sentence: "הקניון מאובטח היטב", verb: "מאובטח", root: "אבטח", guf: "נסתר", zman: "הווה", binyan: "פועל" },
-  { sentence: "האריות יוכנסו לכלוב", verb: "יוכנסו", root: "כנס", guf: "נסתרים", zman: "עתיד", binyan: "הופעל" },
-  { sentence: "אנחנו נשמור על הסביבה", verb: "נשמור", root: "שמר", guf: "מדברים", zman: "עתיד", binyan: "פעל" },
-  { sentence: "הילדות ילכו למגרש", verb: "ילכו", root: "הלכ", guf: "נסתרות", zman: "עתיד", binyan: "פעל" },
-  { sentence: "הפגישה תסוכם ע\"י המשתתפים", verb: "תסוכם", root: "סכמ", guf: "נסתרת", zman: "עתיד", binyan: "פועל" }
-];
+// ============================================================
+//  לוגיקת המשחק — אל תערוך קובץ זה לשינוי שאלות.
+//  לעריכת שאלות ערוך את data.md בלבד.
+// ============================================================
 
-const ROOT_ALTS = {
-  "למד": ["למד","ל-מ-ד","למ\"ד"],
-  "שחק": ["שחק","ש-ח-ק"],
-  "גזר": ["גזר","ג-ז-ר"],
-  "חבא": ["חבא","ח-ב-א"],
-  "גלגל": ["גלגל","ג-ל-ג-ל"],
-  "אבטח": ["אבטח","א-ב-ט-ח"],
-  "כנס": ["כנס","כ-נ-ס","כנ\"ס"],
-  "שמר": ["שמר","ש-מ-ר"],
-  "הלכ": ["הלכ","ה-ל-כ","הלך","ה-ל-ך"],
-  "סכמ": ["סכמ","ס-כ-מ","סכם","ס-כ-ם"]
-};
-
+const FIELDS_PER_Q = 4;
 const COLORS = ["#534AB7","#0F6E56","#993C1D","#854F0B","#185FA5","#3B6D11","#993556"];
+
+let QUESTIONS = [];
 let qIdx = 0, correctCount = 0, wrongCount = 0, totalScore = 0;
 let history = [];
 let checked = false;
 
-function normRoot(s) {
-  return s.trim().replace(/[-–—\s'"״]/g,"").replace(/ך/g,"כ").replace(/ם/g,"מ").replace(/ן/g,"נ").replace(/ף/g,"פ").replace(/ץ/g,"צ").toLowerCase();
-}
-
-function checkRoot(user, correct) {
-  const u = normRoot(user);
-  const alts = ROOT_ALTS[correct] || [correct];
-  return alts.some(a => normRoot(a) === u);
-}
-
 function buildProgress() {
   const p = document.getElementById("progress");
   p.innerHTML = "";
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < QUESTIONS.length; i++) {
     const d = document.createElement("div");
     d.className = "prog-dot" + (i < qIdx ? " done" : i === qIdx ? " current" : "");
     p.appendChild(d);
@@ -198,7 +174,7 @@ function buildProgress() {
 function renderQuestion() {
   checked = false;
   const q = QUESTIONS[qIdx];
-  document.getElementById("qnum").textContent = `שאלה ${qIdx+1} מתוך 10`;
+  document.getElementById("qnum").textContent = `שאלה ${qIdx + 1} מתוך ${QUESTIONS.length}`;
   buildProgress();
 
   const hl = q.sentence.replace(q.verb, `<span class="verb-hl">${q.verb}</span>`);
@@ -211,19 +187,17 @@ function renderQuestion() {
   document.getElementById("result-row").style.display = "none";
   document.getElementById("btn-check").style.display = "block";
   document.getElementById("btn-next").style.display = "none";
-
   document.getElementById("f-root").focus();
 }
 
 function setFieldNav() {
   const ids = ["f-root","f-guf","f-zman","f-binyan"];
   ids.forEach((id, i) => {
-    const el = document.getElementById(id);
-    el.addEventListener("keydown", function(e) {
+    document.getElementById(id).addEventListener("keydown", function(e) {
       if (e.key === "Tab") return;
       if (e.key === "Enter" || e.key === "ArrowLeft") {
         e.preventDefault();
-        const next = ids[i+1];
+        const next = ids[i + 1];
         if (next) document.getElementById(next).focus();
         else document.getElementById("btn-check").click();
       }
@@ -235,23 +209,23 @@ function checkAnswer() {
   if (checked) return;
   checked = true;
   const q = QUESTIONS[qIdx];
-  const userRoot = document.getElementById("f-root").value;
-  const userGuf = document.getElementById("f-guf").value;
-  const userZman = document.getElementById("f-zman").value;
+
+  const userRoot   = document.getElementById("f-root").value;
+  const userGuf    = document.getElementById("f-guf").value;
+  const userZman   = document.getElementById("f-zman").value;
   const userBinyan = document.getElementById("f-binyan").value;
 
   const res = {
-    root: checkRoot(userRoot, q.root),
-    guf: userGuf === q.guf,
-    zman: userZman === q.zman,
-    binyan: userBinyan === q.binyan
+    root:   checkRoot(userRoot, q.root),
+    guf:    userGuf    === q.guf,
+    zman:   userZman   === q.zman,
+    binyan: userBinyan === q.binyan,
   };
 
-  const fields = ["root","guf","zman","binyan"];
-  const inputIds = ["f-root","f-guf","f-zman","f-binyan"];
-  const resultIds = ["r-root","r-guf","r-zman","r-binyan"];
-  const corrects = [q.root, q.guf, q.zman, q.binyan];
-  const userVals = [userRoot, userGuf, userZman, userBinyan];
+  const inputIds  = ["f-root",  "f-guf",  "f-zman",  "f-binyan"];
+  const resultIds = ["r-root",  "r-guf",  "r-zman",  "r-binyan"];
+  const corrects  = [q.root,    q.guf,    q.zman,    q.binyan];
+  const fields    = ["root",    "guf",    "zman",    "binyan"];
 
   let pts = 0;
   fields.forEach((f, i) => {
@@ -260,32 +234,30 @@ function checkAnswer() {
     el.className = res[f] ? "ok" : "err";
     if (res[f]) pts++;
     const rd = document.getElementById(resultIds[i]);
-    if (!res[f]) {
-      rd.innerHTML = `<span class="correct-val">${corrects[i]}</span>`;
-    } else {
-      rd.innerHTML = `<span style="color:#27500A">✓</span>`;
-    }
+    rd.innerHTML = res[f]
+      ? `<span style="color:#27500A">✓</span>`
+      : `<span class="correct-val">${corrects[i]}</span>`;
   });
 
   document.getElementById("result-row").style.display = "";
 
-  const allOk = pts === 4;
-  if (allOk) correctCount++; else wrongCount++;
+  if (pts === FIELDS_PER_Q) correctCount++; else wrongCount++;
   totalScore += pts;
   document.getElementById("sc-correct").textContent = correctCount;
-  document.getElementById("sc-wrong").textContent = wrongCount;
-  document.getElementById("sc-score").textContent = totalScore;
+  document.getElementById("sc-wrong").textContent   = wrongCount;
+  document.getElementById("sc-score").textContent   = totalScore;
 
   history.push({ q, userRoot, userGuf, userZman, userBinyan, res });
 
   document.getElementById("btn-check").style.display = "none";
-  document.getElementById("btn-next").style.display = "block";
-  document.getElementById("btn-next").textContent = qIdx < 9 ? "המשך ←" : "לדף תוצאות ←";
+  document.getElementById("btn-next").style.display  = "block";
+  document.getElementById("btn-next").textContent =
+    qIdx < QUESTIONS.length - 1 ? "המשך ←" : "לדף תוצאות ←";
 }
 
 function nextQ() {
   qIdx++;
-  if (qIdx >= 10) { showResults(); return; }
+  if (qIdx >= QUESTIONS.length) { showResults(); return; }
   renderQuestion();
 }
 
@@ -293,36 +265,62 @@ function showResults() {
   document.getElementById("game").style.display = "none";
   document.getElementById("results-page").style.display = "block";
 
-  const pct = Math.round((totalScore / 40) * 100);
+  const maxScore = QUESTIONS.length * FIELDS_PER_Q;
+  const pct = Math.round((totalScore / maxScore) * 100);
   const msg = pct === 100 ? "מושלם!" : pct >= 80 ? "כל הכבוד!" : pct >= 60 ? "לא רע!" : "המשך להתאמן!";
-  document.getElementById("res-title").textContent = msg;
-  document.getElementById("res-score-big").textContent = `${totalScore} / 40`;
-  document.getElementById("res-sub").textContent = `${correctCount} משפטים מושלמים מתוך 10`;
+
+  document.getElementById("res-title").textContent     = msg;
+  document.getElementById("res-score-big").textContent = `${totalScore} / ${maxScore}`;
+  document.getElementById("res-sub").textContent       = `${correctCount} משפטים מושלמים מתוך ${QUESTIONS.length}`;
 
   const tbody = document.getElementById("res-tbody");
   tbody.innerHTML = "";
   history.forEach((h, i) => {
-    const color = COLORS[i % COLORS.length];
-    const tr = document.createElement("tr");
-    const fields = ["root","guf","zman","binyan"];
-    const corrects = [h.q.root, h.q.guf, h.q.zman, h.q.binyan];
+    const color    = COLORS[i % COLORS.length];
+    const fields   = ["root",    "guf",   "zman",   "binyan"];
+    const corrects = [h.q.root,  h.q.guf, h.q.zman, h.q.binyan];
     const userVals = [h.userRoot, h.userGuf, h.userZman, h.userBinyan];
-    tr.innerHTML = `<td class="sentence-col"><span style="background:${color};color:#fff;border-radius:4px;padding:1px 6px;font-size:11px;">${i+1}</span> ${h.q.verb}</td>` +
-      fields.map((f,fi) => `<td class="${h.res[f]?"right-cell":"wrong-cell"}">${h.res[f] ? corrects[fi] : `<del style="color:#A32D2D;font-size:11px">${userVals[fi]||"—"}</del><br>${corrects[fi]}`}</td>`).join("");
+
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td class="sentence-col">
+         <span style="background:${color};color:#fff;border-radius:4px;padding:1px 6px;font-size:11px;">${i+1}</span>
+         ${h.q.verb}
+       </td>` +
+      fields.map((f, fi) =>
+        `<td class="${h.res[f] ? "right-cell" : "wrong-cell"}">
+           ${h.res[f]
+             ? corrects[fi]
+             : `<del style="color:#A32D2D;font-size:11px">${userVals[fi] || "—"}</del><br>${corrects[fi]}`}
+         </td>`
+      ).join("");
     tbody.appendChild(tr);
   });
 }
 
 function restartGame() {
   qIdx = 0; correctCount = 0; wrongCount = 0; totalScore = 0; history = [];
-  document.getElementById("sc-correct").textContent = 0;
-  document.getElementById("sc-wrong").textContent = 0;
-  document.getElementById("sc-score").textContent = 0;
+  ["sc-correct","sc-wrong","sc-score"].forEach(id =>
+    document.getElementById(id).textContent = 0
+  );
   document.getElementById("game").style.display = "block";
   document.getElementById("results-page").style.display = "none";
   renderQuestion();
 }
 
-setFieldNav();
-renderQuestion();
+// --- אתחול: טעינת שאלות מ-data.md ---
+loadQuestions()
+  .then(questions => {
+    QUESTIONS = questions;
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    setFieldNav();
+    renderQuestion();
+  })
+  .catch(err => {
+    document.getElementById("loading").style.display = "none";
+    const errEl = document.getElementById("error");
+    errEl.style.display = "block";
+    errEl.textContent = "שגיאה בטעינת השאלות: " + err.message;
+  });
 </script>
